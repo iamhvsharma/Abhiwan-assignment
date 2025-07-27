@@ -32,6 +32,9 @@ importers:
       socket.io:
         specifier: ^4.8.1
         version: 4.8.1
+      zod:
+        specifier: ^4.0.10
+        version: 4.0.10
     devDependencies:
       '@types/bcrypt':
         specifier: ^6.0.0
@@ -708,6 +711,9 @@ packages:
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
+
+  zod@4.0.10:
+    resolution: {integrity: sha512-3vB+UU3/VmLL2lvwcY/4RV2i9z/YU0DTV/tDuYjrwmx5WeJ7hwy+rGEEx8glHp6Yxw7ibRbKSaIFBgReRPe5KA==}
 
 snapshots:
 
@@ -1398,3 +1404,5 @@ snapshots:
   ws@8.17.1: {}
 
   xtend@4.0.2: {}
+
+  zod@4.0.10: {}
