@@ -1,33 +1,29 @@
 import { Server } from "socket.io";
 import http from "http";
 import { Express } from "express";
-
-let io: Server;
+import { initSocket } from "./utils/socket"; // ✅ NEW
 
 export const createSocketServer = (app: Express) => {
   const server = http.createServer(app);
 
-  io = new Server(server, {
+  const io = new Server(server, {
     cors: {
-      origin: "*", // Allow all origins for testing
+      origin: "*",
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true
     },
-    allowEIO3: true, // Allow Engine.IO v3 clients
+    allowEIO3: true,
     transports: ['websocket', 'polling']
   });
 
-  // Socket event listeners
+  initSocket(io); // ✅ Store globally for other files
+
   io.on("connection", (socket) => {
     console.log(`🟢 Socket connected: ${socket.id}`);
 
     socket.on("joinWorkspace", (workspaceId: string) => {
       socket.join(workspaceId);
       console.log(`User joined workspace ${workspaceId}`);
-    });
-
-    socket.on("task:update", (data) => {
-      io.to(data.workspaceId).emit("task:updated", data);
     });
 
     socket.on("disconnect", () => {
@@ -37,5 +33,3 @@ export const createSocketServer = (app: Express) => {
 
   return server;
 };
-
-export const getIO = () => io;

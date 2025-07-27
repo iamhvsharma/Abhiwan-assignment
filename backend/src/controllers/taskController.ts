@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../utils/prisma";
+import { getIO } from "../utils/socket";
 
 export const createTask = async (req: any, res: Response) => {
   const { title, description, assignedToId, workspaceNumber } = req.body;
@@ -26,7 +27,15 @@ export const createTask = async (req: any, res: Response) => {
         assignedToId,
         createdById: managerId,
       },
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        notes: true,
+      }
     });
+
+    // 🔄 Emit to workspace room
+    const io = getIO();
+    io.to(workspaceNumber.toString()).emit("task:created", task);
 
     res.status(201).json({ msg: "Task created", task });
   } catch (err) {
@@ -66,17 +75,32 @@ export const updateTask = async (req: any, res: Response) => {
   const managerId = req.user.id;
 
   try {
-    const task = await prisma.task.findUnique({ where: { id: taskId }, include: { workspace: true } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { workspace: true },
+    });
+
     if (!task) return res.status(404).json({ msg: "Task not found" });
 
-    const workspace = await prisma.workspace.findUnique({ where: { id: task.workspaceId } });
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: task.workspaceId },
+    });
+
     if (!workspace || workspace.createdBy !== managerId)
       return res.status(403).json({ msg: "Unauthorized" });
 
     const updated = await prisma.task.update({
       where: { id: taskId },
       data: req.body,
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        notes: true,
+      }
     });
+
+    // 🔄 Emit update
+    const io = getIO();
+    io.to(workspace.workspaceNumber.toString()).emit("task:updated", updated);
 
     res.status(200).json({ msg: "Task updated", task: updated });
   } catch (err) {
@@ -89,14 +113,25 @@ export const deleteTask = async (req: any, res: Response) => {
   const managerId = req.user.id;
 
   try {
-    const task = await prisma.task.findUnique({ where: { id: taskId }, include: { workspace: true } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { workspace: true },
+    });
     if (!task) return res.status(404).json({ msg: "Task not found" });
 
-    const workspace = await prisma.workspace.findUnique({ where: { id: task.workspaceId } });
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: task.workspaceId },
+    });
     if (!workspace || workspace.createdBy !== managerId)
       return res.status(403).json({ msg: "Unauthorized" });
 
     await prisma.task.delete({ where: { id: taskId } });
+
+    // 🔄 Emit deletion
+    const io = getIO();
+    io.to(workspace.workspaceNumber.toString()).emit("task:deleted", {
+      taskId,
+    });
 
     res.status(200).json({ msg: "Task deleted" });
   } catch (err) {
@@ -112,11 +147,23 @@ export const updateTaskStatus = async (req: any, res: Response) => {
     const task = await prisma.task.findUnique({ where: { id: taskId } });
 
     if (!task || task.assignedToId !== userId)
-      return res.status(403).json({ msg: "Not authorized to update this task" });
+      return res
+        .status(403)
+        .json({ msg: "Not authorized to update this task" });
 
     const updated = await prisma.task.update({
       where: { id: taskId },
       data: { status },
+    });
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: task.workspaceId },
+    });
+
+    const io = getIO();
+    io.to(workspace!.workspaceNumber.toString()).emit("task:status", {
+      taskId,
+      status,
     });
 
     res.status(200).json({ msg: "Status updated", task: updated });
@@ -140,6 +187,16 @@ export const addNote = async (req: any, res: Response) => {
         userId,
         note,
       },
+    });
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: task.workspaceId },
+    });
+
+    const io = getIO();
+    io.to(workspace!.workspaceNumber.toString()).emit("task:note", {
+      taskId,
+      note: createdNote,
     });
 
     res.status(201).json({ msg: "Note added", note: createdNote });
