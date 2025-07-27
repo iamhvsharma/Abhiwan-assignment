@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -28,6 +28,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { API_BASE_URL, getAuthHeader } from "@/lib/api";
+
+interface Workspace {
+  name: string;
+  workspaceNumber: number;
+}
 
 const navigation = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -41,13 +47,40 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const isCollapsed = state === "collapsed";
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? "bg-accent text-accent-foreground font-medium border-l-2 border-primary"
       : "hover:bg-accent/80 text-sidebar-foreground";
+
+  useEffect(() => {
+    const fetchWorkspace = async () => {
+      if (!user.workspaceNumber) return;
+
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/workspaces/${user.workspaceNumber}`,
+          {
+            headers: getAuthHeader(),
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          setWorkspace(data.workspace);
+        }
+      } catch (err) {
+        console.error("Failed to load workspace", err);
+      }
+    };
+
+    fetchWorkspace();
+  }, [user.workspaceNumber]);
 
   return (
     <Sidebar
@@ -57,7 +90,7 @@ export function AppSidebar() {
       collapsible="icon"
     >
       {/* Header with Logo and Toggle */}
-      <SidebarHeader className="border-b border-sidebar-border p-4 bg-sidebar-background">
+      <SidebarHeader className="border-b border-sidebar-border px-3 py-[10px] bg-sidebar-background">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -91,34 +124,37 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="gap-0 bg-sidebar-background">
+      <SidebarContent className="gap-0 bg-sidebar-background mt-4">
         {/* Workspace Section */}
-        <SidebarGroup>
-          <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="group/collapsible hover:bg-sidebar-accent text-sidebar-foreground">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  {!isCollapsed && (
-                    <>
-                      <span>My Workspace</span>
-                      <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                    </>
-                  )}
-                </div>
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <div className="px-3 py-2">
-                  <p className="text-xs text-muted-foreground">
-                    {!isCollapsed && "Team Workspace #1234"}
-                  </p>
-                </div>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </SidebarGroup>
+        {workspace && (
+          <SidebarGroup>
+            <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className="group/collapsible hover:bg-sidebar-accent text-sidebar-foreground">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    {!isCollapsed && (
+                      <>
+                        <span>My Workspace</span>
+                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                      </>
+                    )}
+                  </div>
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <div className="px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      {!isCollapsed &&
+                        `${workspace.name} #${workspace.workspaceNumber}`}
+                    </p>
+                  </div>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
 
         {/* Navigation */}
         <SidebarGroup>
