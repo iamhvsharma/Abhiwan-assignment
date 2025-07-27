@@ -19,7 +19,7 @@ interface AppHeaderProps {
   onLogout?: () => void;
 }
 
-export function AppHeader({ onCreateTask, onLogout }: AppHeaderProps) {
+export function AppHeader({ onCreateTask }: AppHeaderProps) {
   const [userName, setUserName] = useState("Loading...");
   const [userRole, setUserRole] = useState<"MANAGER" | "TEAM">("TEAM");
 
@@ -95,7 +95,13 @@ export function AppHeader({ onCreateTask, onLogout }: AppHeaderProps) {
               <span>Profile</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onLogout}>
+            <DropdownMenuItem
+              onClick={() => {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.location.href = "/login"; // redirect to login
+              }}
+            >
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
