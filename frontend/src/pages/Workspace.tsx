@@ -1,86 +1,227 @@
-import { useState } from "react"
-import { Layout } from "@/components/Layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Copy, Building2, Users, CheckSquare, Calendar, Plus } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useEffect, useState } from "react";
+import { Layout } from "@/components/Layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Copy,
+  Building2,
+  Users,
+  Calendar,
+  Plus,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL, getAuthHeader } from "@/lib/api";
+import { io } from "socket.io-client";
 
-const workspaceData = {
-  id: "ws_123456",
-  name: "Product Team Workspace",
-  workspaceNumber: "1234",
-  createdDate: "2024-01-01",
-  manager: "John Doe",
-  memberCount: 5,
-  taskCount: 24,
-  description: "Main workspace for product development and design collaboration"
+const socket = io("http://localhost:8000");
+
+interface Workspace {
+  id: string;
+  name: string;
+  workspaceNumber: number;
+  manager: { name: string };
+  members: { id: string; name: string }[];
+  createdAt: string;
 }
 
-export default function Workspace() {
-  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false)
-  const [joinWorkspaceOpen, setJoinWorkspaceOpen] = useState(false)
-  const [newWorkspaceName, setNewWorkspaceName] = useState("")
-  const [joinWorkspaceNumber, setJoinWorkspaceNumber] = useState("")
-  const { toast } = useToast()
+export default function WorkspacePage() {
+  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
+  const [joinWorkspaceOpen, setJoinWorkspaceOpen] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [joinWorkspaceNumber, setJoinWorkspaceNumber] = useState("");
+  const [managerWorkspaces, setManagerWorkspaces] = useState<Workspace[]>([]);
+  const [joinedWorkspace, setJoinedWorkspace] = useState<Workspace | null>(null);
 
-  const currentUserRole = "MANAGER" // In real app, get from auth context
-  const isManager = currentUserRole === "MANAGER"
+  const { toast } = useToast();
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isManager = user?.role === "MANAGER";
+  const userWorkspaceNumber = user?.workspaceNumber;
 
-  const copyWorkspaceNumber = () => {
-    navigator.clipboard.writeText(workspaceData.workspaceNumber)
+  useEffect(() => {
+    if (isManager) {
+      fetchManagerWorkspaces();
+    } else if (userWorkspaceNumber) {
+      fetchWorkspaceByNumber(userWorkspaceNumber);
+      socket.emit("joinWorkspace", userWorkspaceNumber);
+    }
+
+    socket.on("workspace:updated", () => {
+      if (!isManager && userWorkspaceNumber) {
+        fetchWorkspaceByNumber(userWorkspaceNumber);
+      } else {
+        fetchManagerWorkspaces();
+      }
+    });
+
+    return () => {
+      socket.off("workspace:updated");
+    };
+  }, []);
+
+  const fetchManagerWorkspaces = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/manager`, {
+        headers: getAuthHeader(),
+      });
+      const data = await res.json();
+      setManagerWorkspaces(data.workspaces || []);
+    } catch (err) {
+      console.error("Failed to fetch manager's workspaces", err);
+    }
+  };
+
+  const fetchWorkspaceByNumber = async (number: number) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/${number}`, {
+        headers: getAuthHeader(),
+      });
+      const data = await res.json();
+      setJoinedWorkspace(data.workspace || null);
+    } catch (err) {
+      console.error("Failed to fetch workspace", err);
+    }
+  };
+
+  const handleCreateWorkspace = async () => {
+    if (!newWorkspaceName.trim()) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces`, {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: JSON.stringify({ name: newWorkspaceName }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        toast({
+          title: "Workspace created",
+          description: `Workspace #${data.workspace.workspaceNumber} created`,
+        });
+        setNewWorkspaceName("");
+        setCreateWorkspaceOpen(false);
+        fetchManagerWorkspaces();
+        socket.emit("workspace:updated", data.workspace.workspaceNumber);
+      } else {
+        toast({ title: "Error", description: data.msg });
+      }
+    } catch (err) {
+      console.error("Create workspace error", err);
+    }
+  };
+
+  const handleJoinWorkspace = async () => {
+    if (!joinWorkspaceNumber.trim()) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/join`, {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: JSON.stringify({ workspaceNumber: parseInt(joinWorkspaceNumber) }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ ...user, workspaceNumber: data.workspaceNumber })
+        );
+        toast({
+          title: "Joined Workspace",
+          description: `Successfully joined #${data.workspaceNumber}`,
+        });
+        setJoinWorkspaceOpen(false);
+        setJoinWorkspaceNumber("");
+        fetchWorkspaceByNumber(data.workspaceNumber);
+        socket.emit("joinWorkspace", data.workspaceNumber);
+      } else {
+        toast({ title: "Error", description: data.msg });
+      }
+    } catch (err) {
+      console.error("Join workspace error", err);
+    }
+  };
+
+  const copyWorkspaceNumber = (num: number) => {
+    navigator.clipboard.writeText(num.toString());
     toast({
       title: "Copied!",
-      description: "Workspace number copied to clipboard"
-    })
-  }
+      description: "Workspace number copied to clipboard",
+    });
+  };
 
-  const handleCreateWorkspace = () => {
-    if (!newWorkspaceName.trim()) return
+  const renderWorkspaceCard = (ws: Workspace) => {
+    const daysActive = Math.floor(
+      (Date.now() - new Date(ws.createdAt).getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
 
-    // Handle workspace creation logic here
-    console.log("Create workspace:", newWorkspaceName)
-    
-    toast({
-      title: "Workspace created",
-      description: `"${newWorkspaceName}" workspace has been created successfully`
-    })
-
-    setNewWorkspaceName("")
-    setCreateWorkspaceOpen(false)
-  }
-
-  const handleJoinWorkspace = () => {
-    if (!joinWorkspaceNumber.trim()) return
-
-    // Handle join workspace logic here
-    console.log("Join workspace:", joinWorkspaceNumber)
-    
-    toast({
-      title: "Joined workspace",
-      description: `Successfully joined workspace #${joinWorkspaceNumber}`
-    })
-
-    setJoinWorkspaceNumber("")
-    setJoinWorkspaceOpen(false)
-  }
+    return (
+      <Card key={ws.id}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            {ws.name}
+          </CardTitle>
+          <CardDescription>Workspace #{ws.workspaceNumber}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Manager:</span>
+            <span>{ws.manager.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Members:</span>
+            <span>{ws.members.length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Days Active:</span>
+            <span>{daysActive} days</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => copyWorkspaceNumber(ws.workspaceNumber)}
+          >
+            <Copy className="h-3 w-3 mr-1" />
+            Copy Number
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
-    <Layout userRole={currentUserRole} userName="John Doe">
+    <Layout userRole={user.role} userName={user.name}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Workspace</h1>
             <p className="text-muted-foreground">
-              Manage your workspace settings and information
+              {isManager
+                ? "Manage your workspaces"
+                : "View your joined workspace"}
             </p>
           </div>
-          
+
           <div className="flex gap-2">
-            {isManager ? (
+            {isManager && (
               <Dialog open={createWorkspaceOpen} onOpenChange={setCreateWorkspaceOpen}>
                 <DialogTrigger asChild>
                   <Button className="gap-2 bg-secondary/70 text-foreground hover:bg-secondary/100">
@@ -92,37 +233,37 @@ export default function Workspace() {
                   <DialogHeader>
                     <DialogTitle>Create New Workspace</DialogTitle>
                     <DialogDescription>
-                      Create a new workspace for your team
+                      Name your new workspace
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="workspaceName">Workspace Name</Label>
-                      <Input
-                        id="workspaceName"
-                        placeholder="Enter workspace name..."
-                        value={newWorkspaceName}
-                        onChange={(e) => setNewWorkspaceName(e.target.value)}
-                      />
-                    </div>
+                    <Label htmlFor="workspaceName">Workspace Name</Label>
+                    <Input
+                      id="workspaceName"
+                      value={newWorkspaceName}
+                      onChange={(e) => setNewWorkspaceName(e.target.value)}
+                      placeholder="Ex: Marketing Team"
+                    />
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => setCreateWorkspaceOpen(false)}
                       >
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleCreateWorkspace}
                         disabled={!newWorkspaceName.trim()}
                       >
-                        Create Workspace
+                        Create
                       </Button>
                     </div>
                   </div>
                 </DialogContent>
               </Dialog>
-            ) : (
+            )}
+
+            {!isManager && !joinedWorkspace && (
               <Dialog open={joinWorkspaceOpen} onOpenChange={setJoinWorkspaceOpen}>
                 <DialogTrigger asChild>
                   <Button className="gap-2">
@@ -134,31 +275,29 @@ export default function Workspace() {
                   <DialogHeader>
                     <DialogTitle>Join Workspace</DialogTitle>
                     <DialogDescription>
-                      Enter the workspace number to join an existing workspace
+                      Enter workspace number provided by manager
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="workspaceNumber">Workspace Number</Label>
-                      <Input
-                        id="workspaceNumber"
-                        placeholder="Enter workspace number..."
-                        value={joinWorkspaceNumber}
-                        onChange={(e) => setJoinWorkspaceNumber(e.target.value)}
-                      />
-                    </div>
+                    <Label htmlFor="workspaceNumber">Workspace Number</Label>
+                    <Input
+                      id="workspaceNumber"
+                      value={joinWorkspaceNumber}
+                      onChange={(e) => setJoinWorkspaceNumber(e.target.value)}
+                      placeholder="1234"
+                    />
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => setJoinWorkspaceOpen(false)}
                       >
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleJoinWorkspace}
                         disabled={!joinWorkspaceNumber.trim()}
                       >
-                        Join Workspace
+                        Join
                       </Button>
                     </div>
                   </div>
@@ -168,146 +307,18 @@ export default function Workspace() {
           </div>
         </div>
 
-        {/* Current Workspace Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Current Workspace
-            </CardTitle>
-            <CardDescription>
-              Information about your active workspace
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Workspace Name</label>
-                  <p className="text-lg font-medium">{workspaceData.name}</p>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Workspace Number</label>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-mono font-medium">#{workspaceData.workspaceNumber}</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={copyWorkspaceNumber}
-                      className="gap-1"
-                    >
-                      <Copy className="h-3 w-3" />
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Manager</label>
-                  <p className="text-lg font-medium">{workspaceData.manager}</p>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Created</label>
-                  <p className="text-lg font-medium">{workspaceData.createdDate}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Description</label>
-                  <p className="text-sm">{workspaceData.description}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Workspace Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{workspaceData.memberCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Active collaborators
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{workspaceData.taskCount}</div>
-              <p className="text-xs text-muted-foreground">
-                All workspace tasks
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Days Active</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">26</div>
-              <p className="text-xs text-muted-foreground">
-                Since creation
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Workspace Actions */}
         {isManager && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Workspace Actions</CardTitle>
-              <CardDescription>
-                Manage your workspace settings and data
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">Invite Team Members</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Share the workspace number #{workspaceData.workspaceNumber} with team members to invite them
-                  </p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={copyWorkspaceNumber}
-                  className="gap-2"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy Number
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">Export Workspace Data</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Download all tasks and team data as CSV
-                  </p>
-                </div>
-                <Button variant="outline">
-                  Export Data
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {managerWorkspaces.map((ws) => renderWorkspaceCard(ws))}
+          </div>
+        )}
+
+        {!isManager && joinedWorkspace && (
+          <div className="grid gap-4 md:grid-cols-1">
+            {renderWorkspaceCard(joinedWorkspace)}
+          </div>
         )}
       </div>
     </Layout>
-  )
+  );
 }
