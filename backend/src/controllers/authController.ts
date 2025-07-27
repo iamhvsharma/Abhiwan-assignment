@@ -119,10 +119,18 @@ export const getProfile = async (req: any, res: Response) => {
   try {
     const userId = req.user.id;
     const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, email: true, role: true },
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        workspaces: true
+      },
     });
+
     if (!user) return res.status(404).json({ msg: "User not found" });
+
     res.status(200).json({ user });
   } catch (err) {
     res.status(500).json({ msg: "Internal server error" });
