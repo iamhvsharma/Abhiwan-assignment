@@ -1,5 +1,6 @@
-import { Plus, LogOut, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react";
+import { Plus, LogOut, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,36 +8,56 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { API_BASE_URL, getAuthHeader } from "@/lib/api"; // your utils
 
 interface AppHeaderProps {
-  userRole?: "MANAGER" | "TEAM"
-  userName?: string
-  onCreateTask?: () => void
-  onLogout?: () => void
+  onCreateTask?: () => void;
+  onLogout?: () => void;
 }
 
-export function AppHeader({ 
-  userRole = "MANAGER", 
-  userName = "John Doe",
-  onCreateTask,
-  onLogout 
-}: AppHeaderProps) {
+export function AppHeader({ onCreateTask, onLogout }: AppHeaderProps) {
+  const [userName, setUserName] = useState("Loading...");
+  const [userRole, setUserRole] = useState<"MANAGER" | "TEAM">("TEAM");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const headers = getAuthHeader();
+
+        const res = await fetch(`${API_BASE_URL}/auth/profile`, { headers });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUserName(data.user.name);
+          setUserRole(data.user.role);
+        } else {
+          const err = await res.json();
+          setUserName("Unknown");
+        }
+      } catch (err) {
+        console.error("Error fetching profile", err);
+        setUserName("Unknown");
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
   const initials = userName
     .split(" ")
-    .map(name => name[0])
+    .map((name) => name[0])
     .join("")
-    .toUpperCase()
+    .toUpperCase();
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
       <SidebarTrigger className="md:hidden" />
-      
       <div className="flex-1" />
-      
+
       <div className="flex items-center gap-4">
         {userRole === "MANAGER" && (
           <Button onClick={onCreateTask} size="sm" className="gap-2">
@@ -44,7 +65,7 @@ export function AppHeader({
             Create Task
           </Button>
         )}
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -59,7 +80,10 @@ export function AppHeader({
               <div className="flex flex-col space-y-2">
                 <p className="text-sm font-medium leading-none">{userName}</p>
                 <div className="flex items-center gap-2">
-                  <Badge variant={userRole === "MANAGER" ? "default" : "secondary"} className="text-xs">
+                  <Badge
+                    variant={userRole === "MANAGER" ? "default" : "secondary"}
+                    className="text-xs"
+                  >
                     {userRole}
                   </Badge>
                 </div>
@@ -79,5 +103,5 @@ export function AppHeader({
         </DropdownMenu>
       </div>
     </header>
-  )
+  );
 }
