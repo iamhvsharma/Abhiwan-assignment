@@ -7,6 +7,15 @@ export const createWorkspace = async (req: any, res: Response) => {
   if (!name) return res.status(400).json({ msg: "Name is required" });
 
   try {
+    // 🔒 Check if this manager already created a workspace
+    const existing = await prisma.workspace.findFirst({
+      where: { createdBy: req.user.id },
+    });
+
+    if (existing) {
+      return res.status(400).json({ msg: "You already created a workspace." });
+    }
+
     const last = await prisma.workspace.findFirst({
       orderBy: { workspaceNumber: "desc" },
     });
@@ -25,7 +34,7 @@ export const createWorkspace = async (req: any, res: Response) => {
     res.status(201).json({ msg: "Workspace created", workspace });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ msg: "Internal error" });
+    res.status(500).json({ msg: "Internal server error" });
   }
 };
 
@@ -174,5 +183,29 @@ export const removeUserFromWorkspace = async (req: any, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Internal error" });
+  }
+};
+
+export const getManagerWorkspaces = async (req: any, res: Response) => {
+  const managerId = req.user.id;
+
+  try {
+    const workspaces = await prisma.workspace.findMany({
+      where: { createdBy: managerId },
+      include: {
+        manager: {
+          select: { name: true, email: true },
+        },
+        members: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.status(200).json({ workspaces });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Internal server error" });
   }
 };
