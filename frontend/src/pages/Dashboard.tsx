@@ -1,86 +1,139 @@
-import { Layout } from "@/components/Layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { CheckSquare, Clock, Users, TrendingUp } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Layout } from "@/components/Layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { CheckSquare, Clock, Users, TrendingUp } from "lucide-react";
+import { API_BASE_URL, getAuthHeader } from "@/lib/api";
 
-const stats = [
-  {
-    title: "Total Tasks",
-    value: "24",
-    description: "+3 from last week",
-    icon: CheckSquare,
-    color: "text-blue-600"
-  },
-  {
-    title: "In Progress",
-    value: "8",
-    description: "Active tasks",
-    icon: Clock,
-    color: "text-yellow-600"
-  },
-  {
-    title: "Team Members",
-    value: "6",
-    description: "Active collaborators",
-    icon: Users,
-    color: "text-green-600"
-  },
-  {
-    title: "Completion Rate",
-    value: "87%",
-    description: "+5% from last month",
-    icon: TrendingUp,
-    color: "text-purple-600"
-  }
-]
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+  assignedTo: { name: string };
+  createdAt: string;
+}
 
-const recentTasks = [
-  {
-    id: 1,
-    title: "Update landing page design",
-    status: "IN_PROGRESS",
-    assignee: "Sarah Wilson",
-    dueDate: "2024-01-15"
-  },
-  {
-    id: 2,
-    title: "Fix authentication bug",
-    status: "PENDING",
-    assignee: "Mike Johnson",
-    dueDate: "2024-01-18"
-  },
-  {
-    id: 3,
-    title: "Implement user dashboard",
-    status: "COMPLETED",
-    assignee: "Emily Davis",
-    dueDate: "2024-01-12"
-  },
-  {
-    id: 4,
-    title: "Write API documentation",
-    status: "IN_PROGRESS",
-    assignee: "Alex Chen",
-    dueDate: "2024-01-20"
-  }
-]
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "COMPLETED":
-      return <Badge variant="default" className="bg-success text-success-foreground">Completed</Badge>
-    case "IN_PROGRESS":
-      return <Badge variant="default" className="bg-warning text-warning-foreground">In Progress</Badge>
-    case "PENDING":
-      return <Badge variant="secondary">Pending</Badge>
-    default:
-      return <Badge variant="secondary">{status}</Badge>
-  }
+interface Workspace {
+  name: string;
+  workspaceNumber: number;
+  members: { id: string; name: string }[];
+  manager: { name: string; email: string };
 }
 
 export default function Dashboard() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        if (!user?.workspaceNumber) return;
+
+        const headers = getAuthHeader();
+
+        const resWorkspace = await fetch(
+          `${API_BASE_URL}/workspaces/${user.workspaceNumber}`,
+          { headers }
+        );
+        const workspaceData = await resWorkspace.json();
+        setWorkspace(workspaceData.workspace);
+
+        const resTasks = await fetch(
+          `${API_BASE_URL}/tasks/${user.workspaceNumber}`,
+          { headers }
+        );
+        const tasksData = await resTasks.json();
+        setTasks(tasksData.tasks);
+      } catch (err) {
+        console.error("Failed to load dashboard", err);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const stats = [
+    {
+      title: "Total Tasks",
+      value: tasks.length.toString(),
+      description: `+${tasks.length} total`,
+      icon: CheckSquare,
+      color: "text-blue-600",
+    },
+    {
+      title: "In Progress",
+      value: tasks.filter((t) => t.status === "IN_PROGRESS").length.toString(),
+      description: "Active tasks",
+      icon: Clock,
+      color: "text-yellow-600",
+    },
+    {
+      title: "Team Members",
+      value: workspace?.members.length.toString() || "0",
+      description: "Active collaborators",
+      icon: Users,
+      color: "text-green-600",
+    },
+    {
+      title: "Completion Rate",
+      value: `${Math.round(
+        (tasks.filter((t) => t.status === "COMPLETED").length /
+          (tasks.length || 1)) *
+          100
+      )}%`,
+      description: "Based on task progress",
+      icon: TrendingUp,
+      color: "text-purple-600",
+    },
+  ];
+
+  const recentTasks = [...tasks]
+    .sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .slice(0, 5);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return (
+          <Badge
+            variant="default"
+            className="bg-success text-success-foreground"
+          >
+            Completed
+          </Badge>
+        );
+      case "IN_PROGRESS":
+        return (
+          <Badge
+            variant="default"
+            className="bg-warning text-warning-foreground"
+          >
+            In Progress
+          </Badge>
+        );
+      case "PENDING":
+        return <Badge variant="secondary">Pending</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   return (
-    <Layout userRole="MANAGER" userName="John Doe">
+    <Layout
+      userRole={user?.role}
+      userName={user?.name}
+    >
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -120,16 +173,19 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {recentTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
                   <div className="space-y-1">
                     <p className="font-medium">{task.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      Assigned to {task.assignee}
+                      Assigned to {task.assignedTo?.name || "Unassigned"}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-muted-foreground">
-                      Due {task.dueDate}
+                      {new Date(task.createdAt).toLocaleDateString()}
                     </span>
                     {getStatusBadge(task.status)}
                   </div>
@@ -140,5 +196,5 @@ export default function Dashboard() {
         </Card>
       </div>
     </Layout>
-  )
+  );
 }
