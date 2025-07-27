@@ -5,6 +5,7 @@ dotenv.config();
 
 // Routes
 import authRoutes from "./routes/authRoute";
+import workspaceRoutes from "./routes/workspaceRoutes";
 
 const app = express();
 
@@ -37,6 +38,8 @@ app.get("/health", (req, res) => {
 })
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/workspaces", workspaceRoutes);
+
 
 
 
