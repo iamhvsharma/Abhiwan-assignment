@@ -60,19 +60,19 @@ export function AppSidebar() {
 
   useEffect(() => {
     const fetchWorkspace = async () => {
-      if (!user.workspaceNumber) return;
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (!user || user.role !== "MANAGER") return;
 
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/workspaces/${user.workspaceNumber}`,
-          {
-            headers: getAuthHeader(),
-          }
-        );
+        const res = await fetch(`${API_BASE_URL}/workspaces/manager`, {
+          headers: getAuthHeader(),
+        });
 
-        if (res.ok) {
-          const data = await res.json();
-          setWorkspace(data.workspace);
+        const data = await res.json();
+        // Managers can only have one workspace, so take the first one
+        if (data.workspaces && data.workspaces.length > 0) {
+          setWorkspace(data.workspaces[0]);
         }
       } catch (err) {
         console.error("Failed to load workspace", err);
@@ -80,7 +80,7 @@ export function AppSidebar() {
     };
 
     fetchWorkspace();
-  }, [user.workspaceNumber]);
+  }, []);
 
   return (
     <Sidebar
@@ -126,35 +126,36 @@ export function AppSidebar() {
 
       <SidebarContent className="gap-0 bg-sidebar-background mt-4">
         {/* Workspace Section */}
+        
         {workspace && (
-          <SidebarGroup>
-            <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
-              <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="group/collapsible hover:bg-sidebar-accent text-sidebar-foreground">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    {!isCollapsed && (
-                      <>
-                        <span>My Workspace</span>
-                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                      </>
-                    )}
-                  </div>
-                </SidebarGroupLabel>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <div className="px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      {!isCollapsed &&
-                        `${workspace.name} #${workspace.workspaceNumber}`}
-                    </p>
-                  </div>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </SidebarGroup>
-        )}
+  <SidebarGroup>
+    <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
+      <CollapsibleTrigger asChild>
+        <SidebarGroupLabel className="group/collapsible hover:bg-sidebar-accent text-sidebar-foreground">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            {!isCollapsed && (
+              <>
+                <span>My Workspace</span>
+                <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+              </>
+            )}
+          </div>
+        </SidebarGroupLabel>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <SidebarGroupContent>
+          <div className="px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              {!isCollapsed && `${workspace.name} #${workspace.workspaceNumber}`}
+            </p>
+          </div>
+        </SidebarGroupContent>
+      </CollapsibleContent>
+    </Collapsible>
+  </SidebarGroup>
+)}
+
 
         {/* Navigation */}
         <SidebarGroup>

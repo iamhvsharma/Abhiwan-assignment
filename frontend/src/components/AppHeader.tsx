@@ -16,7 +16,7 @@ import { API_BASE_URL, getAuthHeader } from "@/lib/api"; // your utils
 
 interface AppHeaderProps {
   onCreateTask?: () => void;
-  onLogout?: () => void;
+  
 }
 
 export function AppHeader({ onCreateTask }: AppHeaderProps) {
