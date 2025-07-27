@@ -83,7 +83,7 @@ export default function Workspace() {
             {isManager ? (
               <Dialog open={createWorkspaceOpen} onOpenChange={setCreateWorkspaceOpen}>
                 <DialogTrigger asChild>
-                  <Button className="gap-2">
+                  <Button className="gap-2 bg-secondary/70 text-foreground hover:bg-secondary/100">
                     <Plus className="h-4 w-4" />
                     Create Workspace
                   </Button>
