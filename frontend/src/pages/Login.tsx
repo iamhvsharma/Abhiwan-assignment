@@ -39,6 +39,17 @@ export default function Login() {
 
       // Save token
       localStorage.setItem("token", data.token);
+      const profileRes = await fetch(`${API_BASE_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${data.token}` },
+      });
+      const profileData = await profileRes.json();
+
+      if (profileRes.ok) {
+        localStorage.setItem("user", JSON.stringify(profileData.user));
+        navigate("/dashboard");
+      } else {
+        alert("Failed to load profile");
+      }
 
       // Redirect to dashboard
       navigate("/dashboard");
