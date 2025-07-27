@@ -7,14 +7,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  avatarUrl    String?
-  password     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum Role {
+  MANAGER
+  TEAM
 }
 
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id          String         @id @default(uuid())
+  name        String
+  email       String         @unique
+  password    String
+  role        Role
+  workspaceId String? // FK to Workspace
+  workspace   Workspace?     @relation("WorkspaceMembers", fields: [workspaceId], references: [id])
+  tasks       Task[]         @relation("AssignedTasks")
+  notes       ProgressNote[]
+  createdAt   DateTime       @default(now())
+  Task        Task[]
+  managedWorkspaces Workspace[] @relation("WorkspaceManager")
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  seqId     Int      @unique
+  name      String
+  createdBy String
+  manager   User     @relation("WorkspaceManager", fields: [createdBy], references: [id])
+  members   User[]   @relation("WorkspaceMembers")
+  tasks     Task[]
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id           String         @id @default(uuid())
+  title        String
+  description  String
+  status       TaskStatus     @default(PENDING)
+  assignedToId String
+  assignedTo   User           @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  createdById  String
+  creator      User           @relation(fields: [createdById], references: [id])
+  workspaceId  String
+  workspace    Workspace      @relation(fields: [workspaceId], references: [id])
+  notes        ProgressNote[]
+  createdAt    DateTime       @default(now())
+}
+
+model ProgressNote {
+  id        String   @id @default(uuid())
+  note      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  createdAt DateTime @default(now())
+}
