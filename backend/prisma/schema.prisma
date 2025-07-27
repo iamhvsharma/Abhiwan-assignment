@@ -19,29 +19,28 @@ enum TaskStatus {
 }
 
 model User {
-  id          String         @id @default(uuid())
-  name        String
-  email       String         @unique
-  password    String
-  role        Role
-  workspaceId String? // FK to Workspace
-  workspace   Workspace?     @relation("WorkspaceMembers", fields: [workspaceId], references: [id])
-  tasks       Task[]         @relation("AssignedTasks")
-  notes       ProgressNote[]
-  createdAt   DateTime       @default(now())
-  Task        Task[]
-  managedWorkspaces Workspace[] @relation("WorkspaceManager")
+  id                String         @id @default(uuid())
+  name              String
+  email             String         @unique
+  password          String
+  role              Role
+  tasks             Task[]         @relation("AssignedTasks")
+  notes             ProgressNote[]
+  createdAt         DateTime       @default(now())
+  Task              Task[]
+  managedWorkspaces Workspace[]    @relation("WorkspaceManager")
+  workspaces        Workspace[]    @relation("WorkspaceMembers") // Many-to-many
 }
 
 model Workspace {
-  id        String   @id @default(uuid())
-  seqId     Int      @unique
-  name      String
-  createdBy String
-  manager   User     @relation("WorkspaceManager", fields: [createdBy], references: [id])
-  members   User[]   @relation("WorkspaceMembers")
-  tasks     Task[]
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  workspaceNumber Int      @unique // New unique attribute for sockets and API
+  name            String
+  createdBy       String
+  manager         User     @relation("WorkspaceManager", fields: [createdBy], references: [id])
+  members         User[]   @relation("WorkspaceMembers") // Many-to-many
+  tasks           Task[]
+  createdAt       DateTime @default(now())
 }
 
 model Task {
