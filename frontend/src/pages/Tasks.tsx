@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskNotesDialog } from "@/components/TaskNotesDialog";
+import { EditTaskDialog } from "@/components/EditTaskDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,7 +47,9 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [editTaskOpen, setEditTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -147,11 +150,21 @@ export default function Tasks() {
       );
     });
 
+    socket.on("task:note", ({ taskId, note }) => {
+      console.log("Received task:note event:", { taskId, note });
+      // Update the task's notes if we're viewing it
+      if (selectedTask && selectedTask.id === taskId) {
+        // Trigger a re-render of the dialog to show new note
+        setSelectedTask((prev) => (prev ? { ...prev } : null));
+      }
+    });
+
     return () => {
       socket.off("task:created");
       socket.off("task:updated");
       socket.off("task:deleted");
       socket.off("task:status");
+      socket.off("task:note");
     };
   }, [socket, workspaceNumber, toast]);
 
@@ -168,6 +181,11 @@ export default function Tasks() {
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setNotesDialogOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setEditTaskOpen(true);
   };
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
@@ -313,6 +331,7 @@ export default function Tasks() {
               }}
               userRole={user.role}
               onClick={() => handleTaskClick(task)}
+              onEdit={() => handleEditTask(task)}
               onStatusChange={(status) => handleStatusChange(task.id, status)}
               onDelete={() => handleDeleteTask(task.id)}
             />
@@ -344,13 +363,20 @@ export default function Tasks() {
           onOpenChange={setCreateTaskOpen}
         />
 
+        <EditTaskDialog
+          open={editTaskOpen}
+          onOpenChange={setEditTaskOpen}
+          task={editingTask}
+        />
+
         <TaskNotesDialog
+          key={selectedTask?.id || "no-task"}
           open={notesDialogOpen}
           onOpenChange={setNotesDialogOpen}
           task={
             selectedTask
               ? {
-                  id: parseInt(selectedTask.id),
+                  id: selectedTask.id,
                   title: selectedTask.title,
                   description: selectedTask.description,
                   status: selectedTask.status,

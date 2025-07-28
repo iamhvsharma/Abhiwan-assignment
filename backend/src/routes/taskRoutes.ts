@@ -6,6 +6,7 @@ import {
   deleteTask,
   updateTaskStatus,
   addNote,
+  getTaskNotes,
 } from "../controllers/taskController";
 import { requireAuth, requireRole } from "../middlewares/authMiddleware";
 import { validateBody } from "../middlewares/validateRequest";
@@ -18,12 +19,37 @@ import {
 
 const router = Router();
 
-router.post("/", requireAuth, requireRole("MANAGER"), validateBody(createTaskSchema), createTask);
+router.post(
+  "/",
+  requireAuth,
+  requireRole("MANAGER"),
+  validateBody(createTaskSchema),
+  createTask
+);
 router.get("/:workspaceNumber", requireAuth, getTasks);
-router.put("/:taskId", requireAuth, requireRole("MANAGER"), validateBody(updateTaskSchema), updateTask);
+router.put(
+  "/:taskId",
+  requireAuth,
+  requireRole("MANAGER"),
+  validateBody(updateTaskSchema),
+  updateTask
+);
 router.delete("/:taskId", requireAuth, requireRole("MANAGER"), deleteTask);
 
-router.patch("/status", requireAuth, requireRole("TEAM"), validateBody(updateTaskStatusSchema), updateTaskStatus);
-router.post("/note", requireAuth, requireRole("TEAM"), validateBody(addNoteSchema), addNote);
+router.patch(
+  "/status",
+  requireAuth,
+  requireRole("TEAM"),
+  validateBody(updateTaskStatusSchema),
+  updateTaskStatus
+);
+router.post(
+  "/note",
+  requireAuth,
+  requireRole("TEAM"),
+  validateBody(addNoteSchema),
+  addNote
+);
+router.get("/notes/:taskId", requireAuth, getTaskNotes);
 
 export default router;

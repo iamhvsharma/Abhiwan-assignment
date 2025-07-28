@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../utils/prisma";
 import { getIO } from "../utils/socket";
-
 export const createTask = async (req: any, res: Response) => {
   const { title, description, assignedToId, workspaceNumber } = req.body;
   const managerId = req.user.id;
@@ -181,14 +180,24 @@ export const addNote = async (req: any, res: Response) => {
 
   try {
     const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task || task.assignedToId !== userId)
+
+    if (!task || task.assignedToId !== userId) {
       return res.status(403).json({ msg: "Not authorized" });
+    }
 
     const createdNote = await prisma.progressNote.create({
       data: {
         taskId,
         userId,
         note,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -203,6 +212,47 @@ export const addNote = async (req: any, res: Response) => {
     });
 
     res.status(201).json({ msg: "Note added", note: createdNote });
+  } catch (err) {
+    res.status(500).json({ msg: "Internal error" });
+  }
+};
+
+export const getTaskNotes = async (req: any, res: Response) => {
+  const { taskId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { workspace: { include: { members: true } } },
+    });
+
+    if (!task) {
+      return res.status(404).json({ msg: "Task not found" });
+    }
+
+    // Check if user is a member of the workspace
+    const isMember = task.workspace.members.some(
+      (member) => member.id === userId
+    );
+    if (!isMember) {
+      return res.status(403).json({ msg: "Not authorized to view this task" });
+    }
+
+    const notes = await prisma.progressNote.findMany({
+      where: { taskId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.status(200).json({ notes });
   } catch (err) {
     res.status(500).json({ msg: "Internal error" });
   }

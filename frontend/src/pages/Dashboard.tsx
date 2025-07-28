@@ -114,11 +114,17 @@ export default function Dashboard() {
       );
     });
 
+    socket.on("task:note", ({ taskId, note }) => {
+      // Notes are updated in real-time for all workspace members
+      console.log("New note added to task:", taskId);
+    });
+
     return () => {
       socket.off("task:created");
       socket.off("task:updated");
       socket.off("task:deleted");
       socket.off("task:status");
+      socket.off("task:note");
     };
   }, [socket, workspace?.workspaceNumber, toast]);
 

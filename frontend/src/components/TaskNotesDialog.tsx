@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,10 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, User, MessageSquare, Plus } from "lucide-react";
+import { API_BASE_URL, getAuthHeader } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import "../index.css";
 
 interface Task {
-  id: number;
+  id: string;
   title: string;
   description: string;
   status: string;
@@ -23,42 +25,37 @@ interface Task {
   dueDate?: string;
 }
 
+interface ProgressNote {
+  id: string;
+  note: string;
+  user: {
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+}
+
 interface TaskNotesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task | null;
+  onNoteAdded?: (note: ProgressNote) => void;
 }
-
-const mockNotes = [
-  {
-    id: 1,
-    content: "Started working on the design mockups. Initial wireframes are complete.",
-    author: "Sarah Wilson",
-    createdAt: "2024-01-14T10:30:00Z",
-    avatar: "",
-  },
-  {
-    id: 2,
-    content: "Reviewed the wireframes with the team. Making adjustments based on feedback.",
-    author: "John Doe",
-    createdAt: "2024-01-14T14:15:00Z",
-    avatar: "",
-  },
-  {
-    id: 3,
-    content: "Color palette and typography decisions finalized. Moving to high-fidelity designs.",
-    author: "Sarah Wilson",
-    createdAt: "2024-01-15T09:20:00Z",
-    avatar: "",
-  },
-];
 
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "COMPLETED":
-      return <Badge variant="default" className="bg-success text-success-foreground">Completed</Badge>;
+      return (
+        <Badge variant="default" className="bg-success text-success-foreground">
+          Completed
+        </Badge>
+      );
     case "IN_PROGRESS":
-      return <Badge variant="default" className="bg-warning text-warning-foreground">In Progress</Badge>;
+      return (
+        <Badge variant="default" className="bg-warning text-warning-foreground">
+          In Progress
+        </Badge>
+      );
     case "PENDING":
       return <Badge variant="secondary">Pending</Badge>;
     default:
@@ -66,16 +63,88 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-export function TaskNotesDialog({ open, onOpenChange, task }: TaskNotesDialogProps) {
+export function TaskNotesDialog({
+  open,
+  onOpenChange,
+  task,
+  onNoteAdded,
+}: TaskNotesDialogProps) {
   const [newNote, setNewNote] = useState("");
+  const [notes, setNotes] = useState<ProgressNote[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  // Fetch notes when dialog opens
+  useEffect(() => {
+    if (open && task) {
+      fetchNotes();
+    }
+  }, [open, task]);
+
+  const fetchNotes = async () => {
+    try {
+      console.log("Fetching notes for task:", task?.id);
+      const res = await fetch(`${API_BASE_URL}/tasks/notes/${task?.id}`, {
+        headers: getAuthHeader(),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log("Fetched notes:", data.notes);
+        setNotes(data.notes || []);
+      } else {
+        console.error("Failed to fetch notes:", res.status, res.statusText);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notes", err);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !task) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasks/note`, {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: JSON.stringify({
+          taskId: task.id,
+          note: newNote,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const newNoteData = data.note;
+        setNotes((prev) => [newNoteData, ...prev]);
+        setNewNote("");
+        onNoteAdded?.(newNoteData);
+        toast({
+          title: "Success",
+          description: "Note added successfully",
+        });
+      } else {
+        const data = await res.json();
+        toast({
+          title: "Error",
+          description: data.msg || "Failed to add note",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to add note", err);
+      toast({
+        title: "Error",
+        description: "Failed to add note",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!task) return null;
-
-  const handleAddNote = () => {
-    if (!newNote.trim()) return;
-    console.log("Add note:", newNote);
-    setNewNote("");
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -97,9 +166,7 @@ export function TaskNotesDialog({ open, onOpenChange, task }: TaskNotesDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-[700px] max-h-[90vh] w-full flex flex-col p-4  sm:p-8 lg:p-8 overflow-hidden rounded-xl"
-      >
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] w-full flex flex-col p-4  sm:p-8 lg:p-8 overflow-hidden rounded-xl">
         <DialogHeader className="mb-2">
           <div className="flex gap-2">
             <DialogTitle className="text-lg sm:text-xl font-semibold truncate">
@@ -137,26 +204,36 @@ export function TaskNotesDialog({ open, onOpenChange, task }: TaskNotesDialogPro
               <h3 className="font-medium text-sm">Progress Notes</h3>
             </div>
             <div className="max-h-60 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-              {mockNotes.map((note) => (
-                <div
-                  key={note.id}
-                  className="flex gap-3 p-3 border rounded-lg bg-background"
-                >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={note.avatar} alt={note.author} />
-                    <AvatarFallback className="text-xs">
-                      {getInitials(note.author)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm truncate">{note.author}</span>
-                      <span className="text-xs text-muted-foreground truncate">{formatDate(note.createdAt)}</span>
+              {notes.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  No progress notes yet. Add the first note!
+                </p>
+              ) : (
+                notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="flex gap-3 p-3 border rounded-lg bg-background"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="" alt={note.user.name} />
+                      <AvatarFallback className="text-xs">
+                        {getInitials(note.user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm truncate">
+                          {note.user.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {formatDate(note.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm break-words">{note.note}</p>
                     </div>
-                    <p className="text-sm break-words">{note.content}</p>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -171,17 +248,21 @@ export function TaskNotesDialog({ open, onOpenChange, task }: TaskNotesDialogPro
               className="resize-none min-h-[60px]"
             />
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => onOpenChange(false)} size="sm">
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                size="sm"
+              >
                 Close
               </Button>
               <Button
                 onClick={handleAddNote}
-                disabled={!newNote.trim()}
+                disabled={!newNote.trim() || loading}
                 size="sm"
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Add Note
+                {loading ? "Adding..." : "Add Note"}
               </Button>
             </div>
           </div>
