@@ -14,7 +14,8 @@ const app = express();
 app.use(express.json());
 
 // Adding Cors
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : ["http://localhost:3000", "http://127.0.0.1:3000"];
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : ["http://localhost:8080", "http://localhost:8080/socket.io"];
+console.log(allowedOrigins)
 
 app.use(
   cors({

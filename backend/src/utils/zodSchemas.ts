@@ -20,10 +20,18 @@ export const loginSchema = z.object({
 });
 
 export const createTaskSchema = z.object({
-  title: z.string().min(3),
+  title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().optional(),
-  assignedToId: z.string().uuid(),
-  workspaceNumber: z.number(),
+  assignedToId: z.string().uuid("Invalid assigned user ID"),
+  workspaceNumber: z
+    .union([
+      z.number().int("Workspace number must be an integer"),
+      z.string().transform((val) => parseInt(val, 10)),
+    ])
+    .refine(
+      (val) => !isNaN(val) && val > 0,
+      "Workspace number must be a positive integer"
+    ),
 });
 
 export const updateTaskSchema = z.object({
@@ -41,7 +49,6 @@ export const addNoteSchema = z.object({
   taskId: z.string().uuid(),
   note: z.string().min(1),
 });
-
 
 // Type exports for TypeScript
 export type RegisterInput = z.infer<typeof registerSchema>;

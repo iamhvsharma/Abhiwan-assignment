@@ -8,7 +8,7 @@ export const createSocketServer = (app: Express) => {
 
   const io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: process.env.CORS_ORIGIN,
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true
     },

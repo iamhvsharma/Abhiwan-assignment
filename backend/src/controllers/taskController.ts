@@ -9,11 +9,14 @@ export const createTask = async (req: any, res: Response) => {
   try {
     const workspace = await prisma.workspace.findUnique({
       where: { workspaceNumber },
-      include: { manager: true, members: true },
+      include: { members: true },
     });
 
-    if (!workspace || workspace.manager.id !== managerId)
-      return res.status(403).json({ msg: "Unauthorized or workspace not found" });
+    if (!workspace || workspace.createdBy !== managerId) {
+      return res
+        .status(403)
+        .json({ msg: "Unauthorized or workspace not found" });
+    }
 
     const isMember = workspace.members.some((m) => m.id === assignedToId);
     if (!isMember)
@@ -30,7 +33,7 @@ export const createTask = async (req: any, res: Response) => {
       include: {
         assignedTo: { select: { id: true, name: true } },
         notes: true,
-      }
+      },
     });
 
     // 🔄 Emit to workspace room
@@ -95,7 +98,7 @@ export const updateTask = async (req: any, res: Response) => {
       include: {
         assignedTo: { select: { id: true, name: true } },
         notes: true,
-      }
+      },
     });
 
     // 🔄 Emit update

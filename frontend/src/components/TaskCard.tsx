@@ -1,64 +1,107 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Calendar, User, Edit, Trash2 } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Calendar, User, Edit, Trash2 } from "lucide-react";
 
 interface Task {
-  id: number
-  title: string
-  description: string
-  status: string
-  assignee: string
-  createdDate: string
-  dueDate?: string
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  assignedTo: {
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+  dueDate?: string;
+  assignee: string; // For backward compatibility
 }
 
 interface TaskCardProps {
-  task: Task
-  userRole: "MANAGER" | "TEAM"
-  onClick?: () => void
-  onStatusChange?: (newStatus: string) => void
-  onEdit?: () => void
-  onDelete?: () => void
+  task: Task;
+  userRole: "MANAGER" | "TEAM";
+  onClick?: () => void;
+  onStatusChange?: (newStatus: string) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "COMPLETED":
-      return <Badge variant="default" className="bg-success text-success-foreground">Completed</Badge>
+      return (
+        <Badge variant="default" className="bg-green-500 text-white">
+          Completed
+        </Badge>
+      );
     case "IN_PROGRESS":
-      return <Badge variant="default" className="bg-warning text-warning-foreground">In Progress</Badge>
+      return (
+        <Badge variant="default" className="bg-yellow-500 text-white">
+          In Progress
+        </Badge>
+      );
     case "PENDING":
-      return <Badge variant="secondary">Pending</Badge>
+      return <Badge variant="secondary">Pending</Badge>;
     default:
-      return <Badge variant="secondary">{status}</Badge>
+      return <Badge variant="secondary">{status}</Badge>;
   }
-}
+};
 
-export function TaskCard({ 
-  task, 
-  userRole, 
-  onClick, 
-  onStatusChange, 
-  onEdit, 
-  onDelete 
+const formatDate = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString();
+  } catch {
+    return dateString;
+  }
+};
+
+export function TaskCard({
+  task,
+  userRole,
+  onClick,
+  onStatusChange,
+  onEdit,
+  onDelete,
 }: TaskCardProps) {
-  const canManage = userRole === "MANAGER"
-  const isAssigned = userRole === "TEAM" // In real app, check if current user is assigned
+  const canManage = userRole === "MANAGER";
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isAssigned = task.assignedTo?.id === user.id;
 
   return (
-    <Card className="hover:shadow-md transition-all duration-200 cursor-pointer" onClick={onClick}>
+    <Card
+      className="hover:shadow-md transition-all duration-200 cursor-pointer"
+      onClick={onClick}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1 flex-1">
-            <CardTitle className="text-lg leading-tight">{task.title}</CardTitle>
+            <CardTitle className="text-lg leading-tight">
+              {task.title}
+            </CardTitle>
             <CardDescription className="line-clamp-2">
               {task.description}
             </CardDescription>
           </div>
-          
+
           {canManage && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -67,12 +110,20 @@ export function TaskCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.() }}>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit?.();
+                  }}
+                >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Task
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={(e) => { e.stopPropagation(); onDelete?.() }}
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete?.();
+                  }}
                   className="text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -83,19 +134,19 @@ export function TaskCard({
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           {getStatusBadge(task.status)}
-          
+
           {(canManage || isAssigned) && (
-            <Select 
-              value={task.status} 
+            <Select
+              value={task.status}
               onValueChange={(value) => {
-                onStatusChange?.(value)
+                onStatusChange?.(value);
               }}
             >
-              <SelectTrigger 
+              <SelectTrigger
                 className="w-32 h-8 text-xs"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -113,17 +164,22 @@ export function TaskCard({
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4" />
-            <span>{task.assignee}</span>
+            <span>{task.assignedTo?.name || task.assignee}</span>
           </div>
-          
+
           {task.dueDate && (
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <span>Due {task.dueDate}</span>
+              <span>Due {formatDate(task.dueDate)}</span>
             </div>
           )}
+
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span>Created {formatDate(task.createdAt)}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

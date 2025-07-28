@@ -10,6 +10,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CheckSquare, Clock, Users, TrendingUp } from "lucide-react";
 import { API_BASE_URL, getAuthHeader } from "@/lib/api";
+import { useSocket } from "@/hooks/use-socket";
+import { useToast } from "@/hooks/use-toast";
 
 interface Task {
   id: string;
@@ -29,28 +31,40 @@ interface Workspace {
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const { socket } = useSocket();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        if (!user?.workspaceNumber) return;
-
         const headers = getAuthHeader();
 
-        const resWorkspace = await fetch(
-          `${API_BASE_URL}/workspaces/${user.workspaceNumber}`,
-          { headers }
-        );
-        const workspaceData = await resWorkspace.json();
-        setWorkspace(workspaceData.workspace);
+        // First, get the user's workspace
+        const workspaceRes = await fetch(`${API_BASE_URL}/workspaces/user`, {
+          headers,
+        });
 
-        const resTasks = await fetch(
-          `${API_BASE_URL}/tasks/${user.workspaceNumber}`,
-          { headers }
-        );
-        const tasksData = await resTasks.json();
-        setTasks(tasksData.tasks);
+        if (workspaceRes.ok) {
+          const workspaceData = await workspaceRes.json();
+          const workspaceNum = workspaceData.workspace?.workspaceNumber;
+
+          if (workspaceNum) {
+            setWorkspace(workspaceData.workspace);
+
+            // Then fetch tasks for this workspace
+            const tasksRes = await fetch(
+              `${API_BASE_URL}/tasks/${workspaceNum}`,
+              {
+                headers,
+              }
+            );
+
+            if (tasksRes.ok) {
+              const tasksData = await tasksRes.json();
+              setTasks(tasksData.tasks || []);
+            }
+          }
+        }
       } catch (err) {
         console.error("Failed to load dashboard", err);
       }
@@ -58,6 +72,55 @@ export default function Dashboard() {
 
     fetchData();
   }, []);
+
+  // Socket integration for real-time updates
+  useEffect(() => {
+    if (!socket || !workspace?.workspaceNumber) return;
+
+    socket.emit("joinWorkspace", String(workspace.workspaceNumber));
+
+    socket.on("task:created", (task: Task) => {
+      setTasks((prev) => [task, ...prev]);
+      toast({
+        title: "New Task",
+        description: `Task "${task.title}" was created`,
+      });
+    });
+
+    socket.on("task:updated", (updated: Task) => {
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      toast({
+        title: "Task Updated",
+        description: `Task "${updated.title}" was updated`,
+      });
+    });
+
+    socket.on("task:deleted", ({ taskId }: { taskId: string }) => {
+      setTasks((prev) => {
+        const deletedTask = prev.find((t) => t.id === taskId);
+        if (deletedTask) {
+          toast({
+            title: "Task Deleted",
+            description: `Task "${deletedTask.title}" was deleted`,
+          });
+        }
+        return prev.filter((t) => t.id !== taskId);
+      });
+    });
+
+    socket.on("task:status", ({ taskId, status }) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+      );
+    });
+
+    return () => {
+      socket.off("task:created");
+      socket.off("task:updated");
+      socket.off("task:deleted");
+      socket.off("task:status");
+    };
+  }, [socket, workspace?.workspaceNumber, toast]);
 
   const stats = [
     {
@@ -96,7 +159,8 @@ export default function Dashboard() {
 
   const recentTasks = [...tasks]
     .sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
     .slice(0, 5);
 
@@ -130,10 +194,7 @@ export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   return (
-    <Layout
-      userRole={user?.role}
-      userName={user?.name}
-    >
+    <Layout userRole={user?.role} userName={user?.name}>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>

@@ -1,106 +1,272 @@
-import { useState } from "react"
-import { Layout } from "@/components/Layout"
-import { CreateTaskDialog } from "@/components/CreateTaskDialog"
-import { TaskCard } from "@/components/TaskCard"
-import { TaskNotesDialog } from "@/components/TaskNotesDialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter } from "lucide-react"
+// Tasks.tsx
+import { useEffect, useState } from "react";
+import { Layout } from "@/components/Layout";
+import { CreateTaskDialog } from "@/components/CreateTaskDialog";
+import { TaskCard } from "@/components/TaskCard";
+import { TaskNotesDialog } from "@/components/TaskNotesDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Filter, Plus } from "lucide-react";
+import { API_BASE_URL, getAuthHeader } from "@/lib/api";
+import { useSocket } from "@/hooks/use-socket";
+import { useToast } from "@/hooks/use-toast";
 
-const tasks = [
-  {
-    id: 1,
-    title: "Update landing page design",
-    description: "Revamp the main landing page with new branding and improved UX",
-    status: "IN_PROGRESS",
-    assignee: "Sarah Wilson",
-    createdDate: "2024-01-10",
-    dueDate: "2024-01-15"
-  },
-  {
-    id: 2,
-    title: "Fix authentication bug",
-    description: "Users are unable to login with Google OAuth",
-    status: "PENDING",
-    assignee: "Mike Johnson",
-    createdDate: "2024-01-12",
-    dueDate: "2024-01-18"
-  },
-  {
-    id: 3,
-    title: "Implement user dashboard",
-    description: "Create a comprehensive dashboard for user analytics",
-    status: "COMPLETED",
-    assignee: "Emily Davis",
-    createdDate: "2024-01-08",
-    dueDate: "2024-01-12"
-  },
-  {
-    id: 4,
-    title: "Write API documentation",
-    description: "Document all REST API endpoints with examples",
-    status: "IN_PROGRESS",
-    assignee: "Alex Chen",
-    createdDate: "2024-01-14",
-    dueDate: "2024-01-20"
-  },
-  {
-    id: 5,
-    title: "Setup CI/CD pipeline",
-    description: "Configure automated testing and deployment",
-    status: "PENDING",
-    assignee: "John Doe",
-    createdDate: "2024-01-13",
-    dueDate: "2024-01-22"
-  },
-  {
-    id: 6,
-    title: "Database migration",
-    description: "Migrate from PostgreSQL to MongoDB",
-    status: "PENDING",
-    assignee: "Sarah Wilson",
-    createdDate: "2024-01-11",
-    dueDate: "2024-01-25"
-  }
-]
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  assignedTo: {
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+  dueDate?: string;
+}
+
+// Interface for TaskNotesDialog compatibility
+interface TaskForDialog {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  assignee: string;
+  createdDate: string;
+  dueDate?: string;
+}
 
 export default function Tasks() {
-  const [createTaskOpen, setCreateTaskOpen] = useState(false)
-  const [notesDialogOpen, setNotesDialogOpen] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<typeof tasks[0] | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [loading, setLoading] = useState(true);
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === "ALL" || task.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const { socket } = useSocket();
+  const { toast } = useToast();
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const [workspaceNumber, setWorkspaceNumber] = useState<number | null>(
+    user?.workspaceNumber || null
+  );
 
-  const handleTaskClick = (task: typeof tasks[0]) => {
-    setSelectedTask(task)
-    setNotesDialogOpen(true)
-  }
+  const fetchWorkspaceAndTasks = async () => {
+    try {
+      // First, get the user's workspace
+      const workspaceRes = await fetch(`${API_BASE_URL}/workspaces/user`, {
+        headers: getAuthHeader(),
+      });
 
-  const handleStatusChange = (taskId: number, newStatus: string) => {
-    // Handle status update logic here
-    console.log("Update task status:", taskId, newStatus)
+      if (workspaceRes.ok) {
+        const workspaceData = await workspaceRes.json();
+        const workspaceNum = workspaceData.workspace?.workspaceNumber;
+
+        if (workspaceNum) {
+          setWorkspaceNumber(workspaceNum);
+
+          // Then fetch tasks for this workspace
+          const tasksRes = await fetch(
+            `${API_BASE_URL}/tasks/${workspaceNum}`,
+            {
+              headers: getAuthHeader(),
+            }
+          );
+
+          if (tasksRes.ok) {
+            const tasksData = await tasksRes.json();
+            setTasks(tasksData.tasks || []);
+          } else {
+            throw new Error(`Failed to fetch tasks: ${tasksRes.status}`);
+          }
+        }
+      } else {
+        throw new Error(`Failed to fetch workspace: ${workspaceRes.status}`);
+      }
+    } catch (err) {
+      console.error("Failed to fetch workspace and tasks", err);
+      toast({
+        title: "Error",
+        description: "Failed to load workspace and tasks",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkspaceAndTasks();
+  }, [toast]);
+
+  // Socket integration for real-time updates
+  useEffect(() => {
+    if (!socket || !workspaceNumber) return;
+
+    socket.emit("joinWorkspace", String(workspaceNumber));
+
+    socket.on("task:created", (task: Task) => {
+      setTasks((prev) => [task, ...prev]);
+      toast({
+        title: "New Task",
+        description: `Task "${task.title}" was created`,
+      });
+    });
+
+    socket.on("task:updated", (updated: Task) => {
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      toast({
+        title: "Task Updated",
+        description: `Task "${updated.title}" was updated`,
+      });
+    });
+
+    socket.on("task:deleted", ({ taskId }: { taskId: string }) => {
+      setTasks((prev) => {
+        const deletedTask = prev.find((t) => t.id === taskId);
+        if (deletedTask) {
+          toast({
+            title: "Task Deleted",
+            description: `Task "${deletedTask.title}" was deleted`,
+          });
+        }
+        return prev.filter((t) => t.id !== taskId);
+      });
+    });
+
+    socket.on("task:status", ({ taskId, status }) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+      );
+    });
+
+    return () => {
+      socket.off("task:created");
+      socket.off("task:updated");
+      socket.off("task:deleted");
+      socket.off("task:status");
+    };
+  }, [socket, workspaceNumber, toast]);
+
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch =
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.assignedTo.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "ALL" || task.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setNotesDialogOpen(true);
+  };
+
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasks/status`, {
+        method: "PATCH",
+        headers: {
+          ...getAuthHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ taskId, status: newStatus }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast({
+          title: "Failed",
+          description: data.msg || "Couldn't update task status",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: "DELETE",
+        headers: getAuthHeader(),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast({
+          title: "Error",
+          description: data.msg || "Failed to delete task",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Delete task error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to delete task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusCounts = () => {
+    const counts = {
+      ALL: tasks.length,
+      PENDING: tasks.filter((t) => t.status === "PENDING").length,
+      IN_PROGRESS: tasks.filter((t) => t.status === "IN_PROGRESS").length,
+      COMPLETED: tasks.filter((t) => t.status === "COMPLETED").length,
+    };
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
+
+  if (loading) {
+    return (
+      <Layout userRole={user?.role} userName={user?.name}>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading tasks...</p>
+        </div>
+      </Layout>
+    );
   }
 
   return (
-    <Layout 
-      userRole="MANAGER" 
-      userName="John Doe"
+    <Layout
+      userRole={user?.role}
+      userName={user?.name}
       onCreateTask={() => setCreateTaskOpen(true)}
     >
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
-          <p className="text-muted-foreground">
-            Manage and track all workspace tasks
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+            <p className="text-muted-foreground">
+              Manage and track all workspace tasks ({tasks.length} total)
+            </p>
+          </div>
+
+          {user?.role === "MANAGER" && (
+            <Button onClick={() => setCreateTaskOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Task
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -120,10 +286,18 @@ export default function Tasks() {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Status</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
+              <SelectItem value="ALL">
+                All Status ({statusCounts.ALL})
+              </SelectItem>
+              <SelectItem value="PENDING">
+                Pending ({statusCounts.PENDING})
+              </SelectItem>
+              <SelectItem value="IN_PROGRESS">
+                In Progress ({statusCounts.IN_PROGRESS})
+              </SelectItem>
+              <SelectItem value="COMPLETED">
+                Completed ({statusCounts.COMPLETED})
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -133,32 +307,61 @@ export default function Tasks() {
           {filteredTasks.map((task) => (
             <TaskCard
               key={task.id}
-              task={task}
-              userRole="MANAGER"
+              task={{
+                ...task,
+                assignee: task.assignedTo.name, // For backward compatibility
+              }}
+              userRole={user.role}
               onClick={() => handleTaskClick(task)}
-              onStatusChange={(newStatus) => handleStatusChange(task.id, newStatus)}
+              onStatusChange={(status) => handleStatusChange(task.id, status)}
+              onDelete={() => handleDeleteTask(task.id)}
             />
           ))}
         </div>
 
-        {filteredTasks.length === 0 && (
+        {filteredTasks.length === 0 && !loading && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No tasks found matching your criteria.</p>
+            <p className="text-muted-foreground">
+              {tasks.length === 0
+                ? "No tasks created yet. Create your first task to get started!"
+                : "No tasks found matching your criteria."}
+            </p>
+            {tasks.length === 0 && user?.role === "MANAGER" && (
+              <Button
+                onClick={() => setCreateTaskOpen(true)}
+                className="mt-4 gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Create First Task
+              </Button>
+            )}
           </div>
         )}
 
         {/* Dialogs */}
-        <CreateTaskDialog 
-          open={createTaskOpen} 
+        <CreateTaskDialog
+          open={createTaskOpen}
           onOpenChange={setCreateTaskOpen}
         />
-        
+
         <TaskNotesDialog
           open={notesDialogOpen}
           onOpenChange={setNotesDialogOpen}
-          task={selectedTask}
+          task={
+            selectedTask
+              ? {
+                  id: parseInt(selectedTask.id),
+                  title: selectedTask.title,
+                  description: selectedTask.description,
+                  status: selectedTask.status,
+                  assignee: selectedTask.assignedTo.name,
+                  createdDate: selectedTask.createdAt,
+                  dueDate: selectedTask.dueDate,
+                }
+              : null
+          }
         />
       </div>
     </Layout>
-  )
+  );
 }

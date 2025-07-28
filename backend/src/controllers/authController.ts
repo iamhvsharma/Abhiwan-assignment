@@ -125,13 +125,24 @@ export const getProfile = async (req: any, res: Response) => {
         name: true,
         email: true,
         role: true,
-        workspaces: true
+        workspaces: {
+          select: {
+            workspaceNumber: true,
+            name: true,
+          },
+        },
       },
     });
 
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    res.status(200).json({ user });
+    // Add workspaceNumber to user object for frontend compatibility
+    const userWithWorkspace = {
+      ...user,
+      workspaceNumber: user.workspaces[0]?.workspaceNumber || null,
+    };
+
+    res.status(200).json({ user: userWithWorkspace });
   } catch (err) {
     res.status(500).json({ msg: "Internal server error" });
   }
