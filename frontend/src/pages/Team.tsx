@@ -209,152 +209,139 @@ export default function TeamPage() {
 
   if (!workspace) {
     return (
-      <Layout userRole={user.role} userName={user.name}>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading workspace...</p>
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading workspace...</p>
+      </div>
     );
   }
 
   return (
-    <Layout userRole={user.role} userName={user.name}>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Team Management
-            </h1>
-            <p className="text-muted-foreground">
-              Manage your workspace: {workspace.name} (#
-              {workspace.workspaceNumber})
-            </p>
-          </div>
-
-          {isManager && (
-            <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Invite Member
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Invite Team Member</DialogTitle>
-                  <DialogDescription>Enter email to invite</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="jane@example.com"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setInviteDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleInvite}
-                      disabled={!inviteEmail.trim()}
-                    >
-                      Send
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Team Management</h1>
+          <p className="text-muted-foreground">
+            Manage your workspace: {workspace.name} (#
+            {workspace.workspaceNumber})
+          </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Workspace Members ({workspace.members.length})
-            </CardTitle>
-            <CardDescription>List of all joined members</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {workspace.members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between p-4 border rounded-md"
-              >
-                <div className="flex items-center gap-4">
-                  <Avatar>
-                    <AvatarImage src="" />
-                    <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{member.name}</p>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Mail className="h-3 w-3" /> {member.email}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Badge
-                    variant={
-                      member.role === "MANAGER" ? "default" : "secondary"
-                    }
-                    className="gap-1"
+        {isManager && (
+          <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Invite Member
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite Team Member</DialogTitle>
+                <DialogDescription>Enter email to invite</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setInviteDialogOpen(false)}
                   >
-                    {member.role === "MANAGER" ? (
-                      <Crown className="h-3 w-3" />
-                    ) : (
-                      <Shield className="h-3 w-3" />
-                    )}
-                    {member.role}
-                  </Badge>
-
-                  {isManager && member.id !== user.id && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <UserMinus className="h-3 w-3" />
-                          Remove
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove User</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to remove {member.name}?
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleRemoveUser(member.id)}
-                            className="bg-destructive"
-                          >
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
+                    Cancel
+                  </Button>
+                  <Button onClick={handleInvite} disabled={!inviteEmail.trim()}>
+                    Send
+                  </Button>
                 </div>
               </div>
-            ))}
-
-            {workspace.members.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  No members in this workspace yet.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
-    </Layout>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Workspace Members ({workspace.members.length})</CardTitle>
+          <CardDescription>List of all joined members</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {workspace.members.map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center justify-between p-4 border rounded-md"
+            >
+              <div className="flex items-center gap-4">
+                <Avatar>
+                  <AvatarImage src="" />
+                  <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{member.name}</p>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> {member.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Badge
+                  variant={member.role === "MANAGER" ? "default" : "secondary"}
+                  className="gap-1"
+                >
+                  {member.role === "MANAGER" ? (
+                    <Crown className="h-3 w-3" />
+                  ) : (
+                    <Shield className="h-3 w-3" />
+                  )}
+                  {member.role}
+                </Badge>
+
+                {isManager && member.id !== user.id && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1">
+                        <UserMinus className="h-3 w-3" />
+                        Remove
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove User</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to remove {member.name}?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleRemoveUser(member.id)}
+                          className="bg-destructive"
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {workspace.members.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                No members in this workspace yet.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

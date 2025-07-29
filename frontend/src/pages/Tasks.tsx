@@ -256,138 +256,128 @@ export default function Tasks() {
 
   if (loading) {
     return (
-      <Layout userRole={user?.role} userName={user?.name}>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading tasks...</p>
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading tasks...</p>
+      </div>
     );
   }
 
   return (
-    <Layout
-      userRole={user?.role}
-      userName={user?.name}
-      onCreateTask={() => setCreateTaskOpen(true)}
-    >
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
-            <p className="text-muted-foreground">
-              Manage and track all workspace tasks ({tasks.length} total)
-            </p>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+          <p className="text-muted-foreground">
+            Manage and track all workspace tasks ({tasks.length} total)
+          </p>
+        </div>
 
-          {user?.role === "MANAGER" && (
-            <Button onClick={() => setCreateTaskOpen(true)} className="gap-2">
+        {user?.role === "MANAGER" && (
+          <Button onClick={() => setCreateTaskOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Task
+          </Button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Status ({statusCounts.ALL})</SelectItem>
+            <SelectItem value="PENDING">
+              Pending ({statusCounts.PENDING})
+            </SelectItem>
+            <SelectItem value="IN_PROGRESS">
+              In Progress ({statusCounts.IN_PROGRESS})
+            </SelectItem>
+            <SelectItem value="COMPLETED">
+              Completed ({statusCounts.COMPLETED})
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tasks Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredTasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={{
+              ...task,
+              assignee: task.assignedTo.name, // For backward compatibility
+            }}
+            userRole={user.role}
+            onClick={() => handleTaskClick(task)}
+            onEdit={() => handleEditTask(task)}
+            onStatusChange={(status) => handleStatusChange(task.id, status)}
+            onDelete={() => handleDeleteTask(task.id)}
+          />
+        ))}
+      </div>
+
+      {filteredTasks.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            {tasks.length === 0
+              ? "No tasks created yet. Create your first task to get started!"
+              : "No tasks found matching your criteria."}
+          </p>
+          {tasks.length === 0 && user?.role === "MANAGER" && (
+            <Button
+              onClick={() => setCreateTaskOpen(true)}
+              className="mt-4 gap-2"
+            >
               <Plus className="h-4 w-4" />
-              Create Task
+              Create First Task
             </Button>
           )}
         </div>
+      )}
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">
-                All Status ({statusCounts.ALL})
-              </SelectItem>
-              <SelectItem value="PENDING">
-                Pending ({statusCounts.PENDING})
-              </SelectItem>
-              <SelectItem value="IN_PROGRESS">
-                In Progress ({statusCounts.IN_PROGRESS})
-              </SelectItem>
-              <SelectItem value="COMPLETED">
-                Completed ({statusCounts.COMPLETED})
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Dialogs */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+      />
 
-        {/* Tasks Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={{
-                ...task,
-                assignee: task.assignedTo.name, // For backward compatibility
-              }}
-              userRole={user.role}
-              onClick={() => handleTaskClick(task)}
-              onEdit={() => handleEditTask(task)}
-              onStatusChange={(status) => handleStatusChange(task.id, status)}
-              onDelete={() => handleDeleteTask(task.id)}
-            />
-          ))}
-        </div>
+      <EditTaskDialog
+        open={editTaskOpen}
+        onOpenChange={setEditTaskOpen}
+        task={editingTask}
+      />
 
-        {filteredTasks.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              {tasks.length === 0
-                ? "No tasks created yet. Create your first task to get started!"
-                : "No tasks found matching your criteria."}
-            </p>
-            {tasks.length === 0 && user?.role === "MANAGER" && (
-              <Button
-                onClick={() => setCreateTaskOpen(true)}
-                className="mt-4 gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Create First Task
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Dialogs */}
-        <CreateTaskDialog
-          open={createTaskOpen}
-          onOpenChange={setCreateTaskOpen}
-        />
-
-        <EditTaskDialog
-          open={editTaskOpen}
-          onOpenChange={setEditTaskOpen}
-          task={editingTask}
-        />
-
-        <TaskNotesDialog
-          key={selectedTask?.id || "no-task"}
-          open={notesDialogOpen}
-          onOpenChange={setNotesDialogOpen}
-          task={
-            selectedTask
-              ? {
-                  id: selectedTask.id,
-                  title: selectedTask.title,
-                  description: selectedTask.description,
-                  status: selectedTask.status,
-                  assignee: selectedTask.assignedTo.name,
-                  createdDate: selectedTask.createdAt,
-                  dueDate: selectedTask.dueDate,
-                }
-              : null
-          }
-        />
-      </div>
-    </Layout>
+      <TaskNotesDialog
+        key={selectedTask?.id || "no-task"}
+        open={notesDialogOpen}
+        onOpenChange={setNotesDialogOpen}
+        task={
+          selectedTask
+            ? {
+                id: selectedTask.id,
+                title: selectedTask.title,
+                description: selectedTask.description,
+                status: selectedTask.status,
+                assignee: selectedTask.assignedTo.name,
+                createdDate: selectedTask.createdAt,
+                dueDate: selectedTask.dueDate,
+              }
+            : null
+        }
+      />
+    </div>
   );
 }

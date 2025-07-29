@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -42,7 +42,7 @@ const navigation = [
   { title: "Workspace", url: "/workspace", icon: Building2 },
 ];
 
-export function AppSidebar() {
+export const AppSidebar = memo(function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -126,36 +126,36 @@ export function AppSidebar() {
 
       <SidebarContent className="gap-0 bg-sidebar-background mt-4">
         {/* Workspace Section */}
-        
-        {workspace && (
-  <SidebarGroup>
-    <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
-      <CollapsibleTrigger asChild>
-        <SidebarGroupLabel className="group/collapsible hover:bg-sidebar-accent text-sidebar-foreground">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            {!isCollapsed && (
-              <>
-                <span>My Workspace</span>
-                <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-              </>
-            )}
-          </div>
-        </SidebarGroupLabel>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <SidebarGroupContent>
-          <div className="px-3 py-2">
-            <p className="text-xs text-muted-foreground">
-              {!isCollapsed && `${workspace.name} #${workspace.workspaceNumber}`}
-            </p>
-          </div>
-        </SidebarGroupContent>
-      </CollapsibleContent>
-    </Collapsible>
-  </SidebarGroup>
-)}
 
+        {workspace && (
+          <SidebarGroup>
+            <Collapsible open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className="group/collapsible hover:bg-sidebar-accent text-sidebar-foreground">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    {!isCollapsed && (
+                      <>
+                        <span>My Workspace</span>
+                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                      </>
+                    )}
+                  </div>
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <div className="px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      {!isCollapsed &&
+                        `${workspace.name} #${workspace.workspaceNumber}`}
+                    </p>
+                  </div>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
 
         {/* Navigation */}
         <SidebarGroup>
@@ -177,4 +177,4 @@ export function AppSidebar() {
       </SidebarContent>
     </Sidebar>
   );
-}
+});

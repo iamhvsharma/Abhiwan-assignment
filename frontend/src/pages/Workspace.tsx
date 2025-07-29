@@ -18,13 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Copy,
-  Building2,
-  Users,
-  Calendar,
-  Plus,
-} from "lucide-react";
+import { Copy, Building2, Users, Calendar, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL, getAuthHeader } from "@/lib/api";
 import { io } from "socket.io-client";
@@ -46,7 +40,9 @@ export default function WorkspacePage() {
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [joinWorkspaceNumber, setJoinWorkspaceNumber] = useState("");
   const [managerWorkspaces, setManagerWorkspaces] = useState<Workspace[]>([]);
-  const [joinedWorkspace, setJoinedWorkspace] = useState<Workspace | null>(null);
+  const [joinedWorkspace, setJoinedWorkspace] = useState<Workspace | null>(
+    null
+  );
 
   const { toast } = useToast();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -133,7 +129,9 @@ export default function WorkspacePage() {
       const res = await fetch(`${API_BASE_URL}/workspaces/join`, {
         method: "POST",
         headers: getAuthHeader(),
-        body: JSON.stringify({ workspaceNumber: parseInt(joinWorkspaceNumber) }),
+        body: JSON.stringify({
+          workspaceNumber: parseInt(joinWorkspaceNumber),
+        }),
       });
       const data = await res.json();
 
@@ -168,8 +166,7 @@ export default function WorkspacePage() {
 
   const renderWorkspaceCard = (ws: Workspace) => {
     const daysActive = Math.floor(
-      (Date.now() - new Date(ws.createdAt).getTime()) /
-        (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(ws.createdAt).getTime()) / (1000 * 60 * 60 * 24)
     );
 
     return (
@@ -207,118 +204,128 @@ export default function WorkspacePage() {
     );
   };
 
+  if (!joinedWorkspace) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading workspace...</p>
+      </div>
+    );
+  }
+
   return (
-    <Layout userRole={user.role} userName={user.name}>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Workspace</h1>
-            <p className="text-muted-foreground">
-              {isManager
-                ? "Manage your workspaces"
-                : "View your joined workspace"}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            {isManager && (
-              <Dialog open={createWorkspaceOpen} onOpenChange={setCreateWorkspaceOpen}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2 bg-secondary/70 text-foreground hover:bg-secondary/100">
-                    <Plus className="h-4 w-4" />
-                    Create Workspace
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Workspace</DialogTitle>
-                    <DialogDescription>
-                      Name your new workspace
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Label htmlFor="workspaceName">Workspace Name</Label>
-                    <Input
-                      id="workspaceName"
-                      value={newWorkspaceName}
-                      onChange={(e) => setNewWorkspaceName(e.target.value)}
-                      placeholder="Ex: Marketing Team"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setCreateWorkspaceOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleCreateWorkspace}
-                        disabled={!newWorkspaceName.trim()}
-                      >
-                        Create
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            {!isManager && !joinedWorkspace && (
-              <Dialog open={joinWorkspaceOpen} onOpenChange={setJoinWorkspaceOpen}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Join Workspace
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Join Workspace</DialogTitle>
-                    <DialogDescription>
-                      Enter workspace number provided by manager
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Label htmlFor="workspaceNumber">Workspace Number</Label>
-                    <Input
-                      id="workspaceNumber"
-                      value={joinWorkspaceNumber}
-                      onChange={(e) => setJoinWorkspaceNumber(e.target.value)}
-                      placeholder="1234"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setJoinWorkspaceOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleJoinWorkspace}
-                        disabled={!joinWorkspaceNumber.trim()}
-                      >
-                        Join
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Workspace</h1>
+          <p className="text-muted-foreground">
+            {isManager
+              ? "Manage your workspaces"
+              : "View your joined workspace"}
+          </p>
         </div>
 
-        {isManager && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {managerWorkspaces.map((ws) => renderWorkspaceCard(ws))}
-          </div>
-        )}
+        <div className="flex gap-2">
+          {isManager && (
+            <Dialog
+              open={createWorkspaceOpen}
+              onOpenChange={setCreateWorkspaceOpen}
+            >
+              <DialogTrigger asChild>
+                <Button className="gap-2 bg-secondary/70 text-foreground hover:bg-secondary/100">
+                  <Plus className="h-4 w-4" />
+                  Create Workspace
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Workspace</DialogTitle>
+                  <DialogDescription>Name your new workspace</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Label htmlFor="workspaceName">Workspace Name</Label>
+                  <Input
+                    id="workspaceName"
+                    value={newWorkspaceName}
+                    onChange={(e) => setNewWorkspaceName(e.target.value)}
+                    placeholder="Ex: Marketing Team"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCreateWorkspaceOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleCreateWorkspace}
+                      disabled={!newWorkspaceName.trim()}
+                    >
+                      Create
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
 
-        {!isManager && joinedWorkspace && (
-          <div className="grid gap-4 md:grid-cols-1">
-            {renderWorkspaceCard(joinedWorkspace)}
-          </div>
-        )}
+          {!isManager && !joinedWorkspace && (
+            <Dialog
+              open={joinWorkspaceOpen}
+              onOpenChange={setJoinWorkspaceOpen}
+            >
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Join Workspace
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Join Workspace</DialogTitle>
+                  <DialogDescription>
+                    Enter workspace number provided by manager
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Label htmlFor="workspaceNumber">Workspace Number</Label>
+                  <Input
+                    id="workspaceNumber"
+                    value={joinWorkspaceNumber}
+                    onChange={(e) => setJoinWorkspaceNumber(e.target.value)}
+                    placeholder="1234"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setJoinWorkspaceOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleJoinWorkspace}
+                      disabled={!joinWorkspaceNumber.trim()}
+                    >
+                      Join
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
-    </Layout>
+
+      {isManager && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {managerWorkspaces.map((ws) => renderWorkspaceCard(ws))}
+        </div>
+      )}
+
+      {!isManager && joinedWorkspace && (
+        <div className="grid gap-4 md:grid-cols-1">
+          {renderWorkspaceCard(joinedWorkspace)}
+        </div>
+      )}
+    </div>
   );
 }

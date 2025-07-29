@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { Plus, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { API_BASE_URL, getAuthHeader } from "@/lib/api"; // your utils
 
-interface AppHeaderProps {
-  onCreateTask?: () => void;
-  
-}
+interface AppHeaderProps {}
 
-export function AppHeader({ onCreateTask }: AppHeaderProps) {
+export const AppHeader = memo(function AppHeader() {
   const [userName, setUserName] = useState("Loading...");
   const [userRole, setUserRole] = useState<"MANAGER" | "TEAM">("TEAM");
 
@@ -27,23 +24,18 @@ export function AppHeader({ onCreateTask }: AppHeaderProps) {
     const fetchProfile = async () => {
       try {
         const headers = getAuthHeader();
-
         const res = await fetch(`${API_BASE_URL}/auth/profile`, { headers });
-
         if (res.ok) {
           const data = await res.json();
           setUserName(data.user.name);
           setUserRole(data.user.role);
         } else {
-          const err = await res.json();
           setUserName("Unknown");
         }
       } catch (err) {
-        console.error("Error fetching profile", err);
         setUserName("Unknown");
       }
     };
-
     fetchProfile();
   }, []);
 
@@ -57,15 +49,7 @@ export function AppHeader({ onCreateTask }: AppHeaderProps) {
     <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
       <SidebarTrigger className="md:hidden" />
       <div className="flex-1" />
-
       <div className="flex items-center gap-4">
-        {userRole === "MANAGER" && (
-          <Button onClick={onCreateTask} size="sm" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Task
-          </Button>
-        )}
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -99,7 +83,7 @@ export function AppHeader({ onCreateTask }: AppHeaderProps) {
               onClick={() => {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
-                window.location.href = "/login"; // redirect to login
+                window.location.href = "/login";
               }}
             >
               <LogOut className="mr-2 h-4 w-4" />
@@ -110,4 +94,4 @@ export function AppHeader({ onCreateTask }: AppHeaderProps) {
       </div>
     </header>
   );
-}
+});
