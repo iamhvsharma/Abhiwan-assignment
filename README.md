@@ -1,10 +1,10 @@
-# Abhiwan - Live Collaborative Todo List
+# Quillboard  - Live Collaborative Todo List
 
 A real-time collaborative task management application that enables teams to work together seamlessly with live updates, role-based access control, and modern UI/UX.
 
 ## 🚀 Project Overview
 
-Abhiwan is a full-stack web application that provides a collaborative workspace for teams to manage tasks in real-time. The application features a dual-role system where managers can create workspaces, assign tasks, and oversee team progress, while team members can update task statuses and add progress notes.
+Quillboard  is a full-stack web application that provides a collaborative workspace for teams to manage tasks in real-time. The application features a dual-role system where managers can create workspaces, assign tasks, and oversee team progress, while team members can update task statuses and add progress notes.
 
 ### ✨ Key Features
 
@@ -66,7 +66,7 @@ Abhiwan is a full-stack web application that provides a collaborative workspace 
 ### Project Structure
 
 ```
-Abhiwan/
+Quillboard /
 ├── backend/                 # Express.js API server
 │   ├── src/
 │   │   ├── controllers/     # Route handlers
@@ -204,7 +204,7 @@ erDiagram
    Create a `.env` file in the backend directory:
 
    ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/abhiwan_db"
+   DATABASE_URL="postgresql://username:password@localhost:5432/Quillboard _db"
    JWT_SECRET="your-super-secret-jwt-key"
    CORS_ORIGIN="http://localhost:8080"
    PORT=8000
